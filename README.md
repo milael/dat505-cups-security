@@ -1,23 +1,26 @@
 # DAT505 Assignment 2 — CUPS Printer Discovery and Attack Detection
 
-**Status: experiments completed and captured on 16 November 2026.** This is an isolated educational security laboratory, not a remote-code-execution demonstration.
-
+**Course:** DAT505 — Ethical Hacking  
 **Repository:** https://github.com/milael/dat505-cups-security  
-**Final PDF report:** `DAT505_Assignment2_Final_E07_Verified.pdf` (submitted separately to Canvas; PDF is not required to run the repository).
 
-## Objective
 
-Demonstrate that legacy CUPS browse advertisements sent to a vulnerable `cups-browsed` instance can induce an outbound printer connection; implement a Scapy packet generator and offline PCAP detector; evaluate altered discovery advertisements and a source-specific UDP/631 firewall mitigation. All experiments were performed on isolated Docker networking, not third-party systems.
+## Overview
 
-## Architecture and prerequisites
+This project investigates legacy CUPS printer discovery in an isolated Docker laboratory. `cups_attack.py` generates custom UDP/631 browse advertisements with Scapy. `cups_detector.py` analyzes packet captures and generates alerts for unauthorized advertisements, correlated TCP callbacks, repeated messages, and unexpected message fields. Experiments E00–E07 cover IPP communication, crafted advertisements, detection, an authorized discovery control, and a firewall mitigation.
 
-| Role | Container | Address observed | Notes |
-| --- | --- | --- | --- |
-| Attacker | `dat505-cups-attacker` | `172.19.0.3` | Python 3.12, Scapy 2.8, tcpdump, iptables tooling |
-| Victim | `dat505-cups-victim` | `172.19.0.2` | `vulhub/cups-browsed:2.0.1`, AMD64 emulated on ARM64 Mac |
-| Software printer | `dat505-cups-printer` | `172.19.0.4` | `ippeveprinter`, TCP 8631, DNS-SD disabled for the original printer; E07 legacy browse generated manually |
+## Laboratory environment
 
-Docker Compose uses an `internal: true` bridge and does not publish victim ports. **Addresses are observations from this run, not guaranteed after recreation.** Docker Desktop and Compose are prerequisites. The attacker and printer images are built locally.
+| Component | Implementation | Address during experiments |
+| --- | --- | --- |
+| Attacker | Debian-based Python 3.12 container; Scapy and `tcpdump` | `172.19.0.3` |
+| Vulnerable CUPS victim | Vulhub `vulhub/cups-browsed:2.0.1` | `172.19.0.2` |
+| Virtual IPP printer | `ippeveprinter` on TCP 8631 | `172.19.0.4` |
+
+The lab uses a Docker Compose network configured with `internal: true`; the vulnerable service has no host-published ports. The victim's AMD64 image was run under emulation on an ARM64 Mac. Container addresses are those recorded during the experiments.
+
+### Start the lab
+
+Docker Desktop and Docker Compose are required.
 
 ```bash
 docker build -t dat505-scapy-attacker -f docker/attacker/Dockerfile .
@@ -26,50 +29,43 @@ docker compose -f lab-compose.yml up -d
 docker compose -f lab-compose.yml ps
 ```
 
-To verify the IPP emulator: 
+The printer provides an IPP service on `172.19.0.4:8631` in the recorded environment. E00 validated it with the IPP `Get-Printer-Attributes` operation.
 
-```bash
-docker run --rm --network container:dat505-cups-attacker \
-  --entrypoint ipptool dat505-ipp-printer -tv \
-  ipp://172.19.0.4:8631/ipp/print \
-  /usr/share/cups/ipptool/get-printer-attributes.test
-```
+## Scapy attack tool
 
-The example IP addresses assume the documented run. Check actual addresses using `docker inspect` and substitute if needed. Direct HTTP `GET /` may give `400 Bad Request`; use `ipptool` for an actual IPP request.
+`cups_attack.py` builds `IP()/UDP(sport=631, dport=631)/Raw()` packets containing a legacy CUPS browse message. Its command-line arguments configure the victim address, advertised printer IP and port, URI path, location, description, packet count, interval, PCAP output, and JSONL transmission log.
 
-## Attack implementation
-
-`cups_attack.py` builds `IP/UDP/Raw` Scapy packets addressed to UDP/631 containing the legacy discovery announcement. It supports victim address, advertised host, advertised port and path, location, info, count (1–20), rate, sent-PCAP, and JSONL log output.
+Example from experiment E02:
 
 ```bash
 docker exec dat505-cups-attacker python /workspace/cups_attack.py \
-  --victim 172.19.0.2 --printer-ip 172.19.0.4 \
-  --printer-port 8631 --count 1 \
+  --victim 172.19.0.2 \
+  --printer-ip 172.19.0.4 --printer-port 8631 \
+  --count 1 \
   --pcap pcap_files/attack/E02_sent.pcap \
   --log evidence/logs/E02_attack.jsonl
 ```
 
-Default advertised URI: `http://172.19.0.4:8631/printers/DAT505-Lab-Printer`. The `/printers/` URI path was required to trigger a callback in this lab; `/ipp/print` variants were received but rejected by the discovery parser. **Sent-packet PCAPs do not establish victim reception:** the separately captured victim-side PCAPs are authoritative.
+The accepted advertisement used this URI:
 
-For capture, run a temporary tcpdump container in the victim namespace **before** sending traffic:
-
-```bash
-docker run --rm --network container:dat505-cups-victim \
-  --cap-add NET_RAW --cap-add NET_ADMIN \
-  -v "$(pwd):/workspace" dat505-scapy-attacker \
-  tcpdump -i eth0 -s 0 -nn \
-  -w /workspace/pcap_files/attack/example.pcap \
-  'udp port 631 or tcp port 8631 or tcp port 8632'
+```text
+http://172.19.0.4:8631/printers/DAT505-Lab-Printer
 ```
 
-## Detection implementation
+The separately recorded victim-side capture `pcap_files/attack/E02_cli_test.pcap` documents the received message and resulting TCP connection.
 
-`cups_detector.py` reads offline PCAPs using `PcapReader` and exports JSON and CSV alerts. Four rules:
+## Scapy detection tool
 
-- **D01:** syntactically expected browse announcement from a source not in the supplied allowlist.
-- **D02:** SYN initiated by the victim toward the advertised destination shortly after untrusted discovery. Identical SYN sequences are deduplicated.
-- **D03:** rate threshold (default: five announcements in ten seconds, per sender).
-- **D04:** unexpected or malformed legacy browse announcement format, including a path the detector does not recognize.
+`cups_detector.py` uses Scapy's `PcapReader` to analyze saved captures and exports alerts to **JSON and CSV**.
+
+| Rule | Detection |
+| --- | --- |
+| D01 | Legacy CUPS browse advertisement from a source absent from the configured allowlist |
+| D02 | TCP SYN from the victim to an advertised destination within the correlation window after untrusted discovery |
+| D03 | Five discovery messages from one source within ten seconds (default settings) |
+| D04 | Unexpected or nonmatching legacy CUPS browse message format |
+
+Example analysis:
 
 ```bash
 docker exec dat505-cups-attacker python /workspace/cups_detector.py \
@@ -79,33 +75,54 @@ docker exec dat505-cups-attacker python /workspace/cups_detector.py \
   --csv evidence/logs/E02_detections.csv
 ```
 
-**Limitations:** The detector assumes the strict `0 3 http(s)://IPv4:port/printers/...` grammar, manually supplied victim and allowlist, and a time-window correlation, which can produce false positives or miss valid CUPS traffic. It cannot prove printer registration or code execution, and does not implement general IPP parsing. The source allowlist is illustrative and does not represent independently verified trusted printer-discovery infrastructure.
+## Experiments and results
 
-## Verified experiments
-
-| ID | Scenario and key observation | Captured file | Detector result |
+| Test | Experiment | Observation | Detector |
 | --- | --- | --- | --- |
-| E00 | Direct normal `Get-Printer-Attributes` succeeded (`successful-ok`); 24 packets | `pcap_files/normal/E00_ipp_baseline.pcap` | 0 alerts |
-| E01 | `/ipp/print` browse URIs rejected; `/printers/DAT505-Lab-Printer` triggered victim TCP callback | `pcap_files/attack/E01_printers_path.pcap` | Not labeled by current detector outputs |
-| E02 | Parameterized Scapy advertisement, victim initiated TCP to 172.19.0.4:8631 | `pcap_files/attack/E02_cli_test.pcap` | D01 + D02 (2) |
-| E03 | Changed advertised TCP port to 8632; victim sent SYN to that port | `pcap_files/attack/E03_modified_port.pcap` | D01 + D02 (2) |
-| E04 | Unexpected URI path `/ipp/print` | `pcap_files/attack/E04_invalid_path.pcap` | D04 (1) |
-| E05 | Five announcements at 0.2 s spacing | `pcap_files/attack/E05_burst.pcap` | D01 x5, D02 x5, D03 x1 (11) |
-| E06 | Source-specific UDP/631 DROP rule matched one packet; no victim TCP callback observed | `pcap_files/mitigation/E06_after_firewall.pcap` | D01 only (1) |
-| E07 | Authorized legacy browse from the virtual printer (172.19.0.4:631); victim TCP connection to printer port 8631 about 28.86 ms later, with subsequent data exchange | `pcap_files/normal/E07_legacy_baseline.pcap` | Trusted source: 0 alerts; omitted trusted source: D01 + D02 (2) |
+| E00 | Direct IPP control | `Get-Printer-Attributes` returned `successful-ok`; 24 packets | 0 alerts |
+| E01 | URI scheme and path variations | `/ipp/print` variants were rejected; `/printers/` caused a victim callback | Victim/printer logs and PCAPs |
+| E02 | Unauthorized Scapy advertisement | Victim connected to advertised printer TCP/8631; 28 captured packets | D01 + D02 (2) |
+| E03 | Advertised port changed to 8632 | Victim initiated a TCP SYN to port 8632 | D01 + D02 (2) |
+| E04 | Unexpected URI path | Discovery datagram recorded, without a callback | D04 (1) |
+| E05 | Five repeated advertisements | Five advertisements within 0.902 s; 135 captured packets | 5×D01 + 5×D02 + D03 (11) |
+| E06 | UDP/631 firewall restriction | Advertisement observed; no victim callback in the capture | D01 (1) |
+| E07 | Authorized legacy browse from printer container | Victim initiated TCP/8631 approximately 28.86 ms later; handshake and data exchange recorded | Trusted: 0; without allowlist: D01 + D02 (2) |
 
-Evidence: `evidence/logs/` contains original attack JSONL, detector JSON/CSV, victim/printer logs, and `E06_firewall_counters.txt`. The E06 counter recorded one dropped packet (114 bytes); the rule was removed after the test. The failed E01 URI variants are preserved rather than omitted. E07 detector outputs are `E07_trusted.json/.csv` and `E07_untrusted.json/.csv`. The four Wireshark screenshots are in `evidence/screenshots/` (E02, E05, E06 and E07).
+### Authorized discovery control (E07)
 
-## Mitigation, analysis, and caveats
+A legitimate control advertisement was generated by a Python UDP socket inside the virtual printer's network namespace (`172.19.0.4:631`). The victim's receipt of that advertisement and subsequent TCP communication were recorded in `pcap_files/normal/E07_legacy_baseline.pcap`. An allowlisted analysis generated no alerts. An analysis of the same capture without the trusted-source entry generated two false-positive alerts relative to the authorized control.
 
-Mitigation was an `iptables` INPUT DROP on the victim's network namespace, specifically `-s 172.19.0.3 -p udp --dport 631`. Before mitigation (E02) the advertisement resulted in a TCP callback; with this rule applied (E06), the victim-side capture still observed the inbound datagram but no outbound TCP session. The detector correspondingly reported D01 but not D02. This documents one controlled before/after outcome; it does not prove comprehensive resistance to CUPS exploitation.
+### Mitigation (E06)
 
-The E00 test is a direct IPP baseline from a test client. E07 adds an authorized, manually generated legacy CUPS browse announcement from the printer namespace, followed by a victim-initiated TCP handshake and bidirectional application data. The same legitimate E07 PCAP yielded **0 alerts** with `--trusted-source 172.19.0.4` and **D01/D02** when that source was omitted. The latter is a demonstrated configuration-dependent false positive for the controlled test, not a measured general false-positive rate. We do **not** claim production accuracy or zero false negatives. A separate DNS-SD-enabled printer generated mDNS packets on the printer side, but none were observed in the victim-side capture; automatic DNS-SD discovery remains unverified.
+The following temporary rule was applied within the victim network namespace:
 
-## Safety and references
+```bash
+iptables -I INPUT 1 -s 172.19.0.3 -p udp --dport 631 -j DROP
+```
 
-Never run outside an authorized isolated environment or publish vulnerable port 631 on the host. Stop the lab with `docker compose -f lab-compose.yml down` when finished.
+The firewall counter recorded **one dropped packet (114 bytes)**. The victim-side capture contained the incoming advertisement but no subsequent TCP callback. The rule was removed after the experiment.
 
-- Vulhub environment: https://github.com/vulhub/vulhub/tree/master/cups-browsed/CVE-2024-47177 (path retains legacy/rejected CVE identifier).
-- OpenPrinting security advisory: https://github.com/OpenPrinting/cups-browsed/security/advisories/GHSA-rj88-6mr5-rcw8
-- Scapy project: https://scapy.net/
+## Repository contents
+
+```text
+cups_attack.py               Scapy CUPS browse generator
+cups_detector.py             Scapy offline detection rules
+requirements.txt             Python dependency
+lab-compose.yml              Isolated Docker lab configuration
+docker/                      Attacker and printer Dockerfiles and printer startup
+pcap_files/normal/           E00 and E07 baseline captures
+pcap_files/attack/           E01–E05 attack captures
+pcap_files/mitigation/       E06 before/after evidence
+evidence/logs/               Execution, detector, and firewall records
+evidence/screenshots/        Wireshark figures for E02, E05, E06, E07
+```
+
+The PCAPs capture network behavior; JSON/CSV files record the corresponding detector results. The figures are included in the accompanying assignment PDF report.
+
+## References and responsible use
+
+- [Vulhub CUPS laboratory](https://github.com/vulhub/vulhub/tree/master/cups-browsed/CVE-2024-47177)
+- [OpenPrinting cups-browsed security advisory](https://github.com/OpenPrinting/cups-browsed/security/advisories/GHSA-rj88-6mr5-rcw8)
+- [Scapy documentation](https://scapy.readthedocs.io/)
+
+All traffic generation and analysis were conducted in an isolated, authorized laboratory. 
