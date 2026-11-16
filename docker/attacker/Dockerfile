@@ -8,6 +8,7 @@ RUN apt-get update && \
         iproute2 \
         iputils-ping \
         curl \
+	iptables \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Scapy for packet construction and analysis.

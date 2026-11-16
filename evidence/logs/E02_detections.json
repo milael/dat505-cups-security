@@ -1,0 +1,18 @@
+[
+  {
+    "timestamp": "2026-11-16T13:43:12.032890+00:00",
+    "rule": "D01",
+    "severity": "high",
+    "src": "172.19.0.3",
+    "dst": "172.19.0.2",
+    "detail": "Untrusted discovery source 172.19.0.3 advertised 172.19.0.4:8631"
+  },
+  {
+    "timestamp": "2026-11-16T13:43:12.035859+00:00",
+    "rule": "D02",
+    "severity": "high",
+    "src": "172.19.0.2",
+    "dst": "172.19.0.4",
+    "detail": "Victim initiated TCP connection to 172.19.0.4:8631 following untrusted discovery from 172.19.0.3"
+  }
+]

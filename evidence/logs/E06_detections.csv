@@ -1,0 +1,2 @@
+timestamp,rule,severity,src,dst,detail
+2026-11-16T15:20:57.908437+00:00,D01,high,172.19.0.3,172.19.0.2,Untrusted discovery source 172.19.0.3 advertised 172.19.0.4:8631

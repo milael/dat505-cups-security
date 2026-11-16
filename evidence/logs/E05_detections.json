@@ -1,0 +1,90 @@
+[
+  {
+    "timestamp": "2026-11-16T15:09:47.608906+00:00",
+    "rule": "D01",
+    "severity": "high",
+    "src": "172.19.0.3",
+    "dst": "172.19.0.2",
+    "detail": "Untrusted discovery source 172.19.0.3 advertised 172.19.0.4:8631"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:47.612246+00:00",
+    "rule": "D02",
+    "severity": "high",
+    "src": "172.19.0.2",
+    "dst": "172.19.0.4",
+    "detail": "Victim initiated TCP connection to 172.19.0.4:8631 following untrusted discovery from 172.19.0.3"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:47.829082+00:00",
+    "rule": "D01",
+    "severity": "high",
+    "src": "172.19.0.3",
+    "dst": "172.19.0.2",
+    "detail": "Untrusted discovery source 172.19.0.3 advertised 172.19.0.4:8631"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:47.834727+00:00",
+    "rule": "D02",
+    "severity": "high",
+    "src": "172.19.0.2",
+    "dst": "172.19.0.4",
+    "detail": "Victim initiated TCP connection to 172.19.0.4:8631 following untrusted discovery from 172.19.0.3"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:48.057450+00:00",
+    "rule": "D01",
+    "severity": "high",
+    "src": "172.19.0.3",
+    "dst": "172.19.0.2",
+    "detail": "Untrusted discovery source 172.19.0.3 advertised 172.19.0.4:8631"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:48.059797+00:00",
+    "rule": "D02",
+    "severity": "high",
+    "src": "172.19.0.2",
+    "dst": "172.19.0.4",
+    "detail": "Victim initiated TCP connection to 172.19.0.4:8631 following untrusted discovery from 172.19.0.3"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:48.278678+00:00",
+    "rule": "D01",
+    "severity": "high",
+    "src": "172.19.0.3",
+    "dst": "172.19.0.2",
+    "detail": "Untrusted discovery source 172.19.0.3 advertised 172.19.0.4:8631"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:48.284221+00:00",
+    "rule": "D02",
+    "severity": "high",
+    "src": "172.19.0.2",
+    "dst": "172.19.0.4",
+    "detail": "Victim initiated TCP connection to 172.19.0.4:8631 following untrusted discovery from 172.19.0.3"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:48.510944+00:00",
+    "rule": "D01",
+    "severity": "high",
+    "src": "172.19.0.3",
+    "dst": "172.19.0.2",
+    "detail": "Untrusted discovery source 172.19.0.3 advertised 172.19.0.4:8631"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:48.510944+00:00",
+    "rule": "D03",
+    "severity": "medium",
+    "src": "172.19.0.3",
+    "dst": "172.19.0.2",
+    "detail": "5 advertisements within 10 seconds"
+  },
+  {
+    "timestamp": "2026-11-16T15:09:48.513998+00:00",
+    "rule": "D02",
+    "severity": "high",
+    "src": "172.19.0.2",
+    "dst": "172.19.0.4",
+    "detail": "Victim initiated TCP connection to 172.19.0.4:8631 following untrusted discovery from 172.19.0.3"
+  }
+]

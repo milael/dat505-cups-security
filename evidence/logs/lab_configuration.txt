@@ -1,0 +1,30 @@
+name: dat505-cups-assignment2
+services:
+  attacker:
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    container_name: dat505-cups-attacker
+    image: dat505-scapy-attacker
+    networks:
+      cups_lab: null
+    platform: linux/arm64
+    restart: "no"
+    volumes:
+      - type: bind
+        source: /Users/milael/Documents/Education/UiS/Master/DAT505-EthicalHacking/Assignment2/dat505-cups-assignment2
+        target: /workspace
+        bind:
+          create_host_path: true
+    working_dir: /workspace
+  victim:
+    container_name: dat505-cups-victim
+    image: vulhub/cups-browsed:2.0.1
+    networks:
+      cups_lab: null
+    platform: linux/amd64
+    restart: "no"
+networks:
+  cups_lab:
+    name: dat505-cups-assignment2_cups_lab
+    internal: true

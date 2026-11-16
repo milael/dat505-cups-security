@@ -1,0 +1,2 @@
+timestamp,rule,severity,src,dst,detail
+2026-11-16T15:08:58.888561+00:00,D04,medium,172.19.0.3,172.19.0.2,Malformed or unexpected CUPS browse message

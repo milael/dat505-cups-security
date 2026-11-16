@@ -1,0 +1,1 @@
+{"timestamp": "2026-11-16T15:08:58.918993+00:00", "event": "discovery_packet_sent", "target": "172.19.0.2", "printer_ip": "172.19.0.4", "printer_port": 8631, "printer_path": "/ipp/print", "sequence": 1, "message": "0 3 http://172.19.0.4:8631/ipp/print \"DAT505 Lab\" \"Virtual Printer\""}

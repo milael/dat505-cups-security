@@ -1,0 +1,29 @@
+Using spool directory "/tmp/ippeveprinter.1".
+Ignored Avahi state 1.
+printer-uri-supported="ipp://da954d1160ca.local:8631/ipp/print","ipps://da954d1160ca.local:8631/ipp/print"
+printer-uuid="urn:uuid:48b6c9ad-c15f-3cf2-5891-2bdbb66f587d"
+Ignored Avahi state 2.
+Accepted connection from 172.19.0.3
+172.19.0.3 GET /
+172.19.0.3 Bad Host: header 'dat505-cups-printer'.
+172.19.0.3 Bad Request
+Closing connection from 172.19.0.3
+Accepted connection from 172.19.0.3
+172.19.0.3 POST /ipp/print
+172.19.0.3 Continue
+172.19.0.3 Get-Printer-Attributes successful-ok
+172.19.0.3 OK
+172.19.0.3 Client closed connection.
+Closing connection from 172.19.0.3
+Accepted connection from 172.19.0.2
+172.19.0.2 POST /printers/DAT505-Lab-Printer
+172.19.0.2 Get-Printer-Attributes client-error-not-found (printer-uri ipp://172.19.0.4:8631/printers/DAT505-Lab-Printer not found.)
+172.19.0.2 OK
+172.19.0.2 POST /printers/DAT505-Lab-Printer
+172.19.0.2 Get-Printer-Attributes client-error-not-found (printer-uri ipp://172.19.0.4:8631/printers/DAT505-Lab-Printer not found.)
+172.19.0.2 OK
+172.19.0.2 POST /printers/DAT505-Lab-Printer
+172.19.0.2 Get-Printer-Attributes client-error-not-found (printer-uri ipp://172.19.0.4:8631/printers/DAT505-Lab-Printer not found.)
+172.19.0.2 OK
+172.19.0.2 Client closed connection.
+Closing connection from 172.19.0.2
