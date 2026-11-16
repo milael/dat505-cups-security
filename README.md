@@ -3,7 +3,7 @@
 **Status: experiments completed and captured on 16 November 2026.** This is an isolated educational security laboratory, not a remote-code-execution demonstration.
 
 **Repository:** https://github.com/milael/dat505-cups-security  
-**Main report:** `DAT505_Assignment2_Report.pdf` (submit the PDF separately if required by the course).
+**Final PDF report:** `DAT505_Assignment2_Final_E07_Verified.pdf` (submitted separately to Canvas; PDF is not required to run the repository).
 
 ## Objective
 
@@ -15,7 +15,7 @@ Demonstrate that legacy CUPS browse advertisements sent to a vulnerable `cups-br
 | --- | --- | --- | --- |
 | Attacker | `dat505-cups-attacker` | `172.19.0.3` | Python 3.12, Scapy 2.8, tcpdump, iptables tooling |
 | Victim | `dat505-cups-victim` | `172.19.0.2` | `vulhub/cups-browsed:2.0.1`, AMD64 emulated on ARM64 Mac |
-| Software printer | `dat505-cups-printer` | `172.19.0.4` | `ippeveprinter`, TCP 8631, DNS-SD disabled in printer command |
+| Software printer | `dat505-cups-printer` | `172.19.0.4` | `ippeveprinter`, TCP 8631, DNS-SD disabled for the original printer; E07 legacy browse generated manually |
 
 Docker Compose uses an `internal: true` bridge and does not publish victim ports. **Addresses are observations from this run, not guaranteed after recreation.** Docker Desktop and Compose are prerequisites. The attacker and printer images are built locally.
 
@@ -92,14 +92,15 @@ docker exec dat505-cups-attacker python /workspace/cups_detector.py \
 | E04 | Unexpected URI path `/ipp/print` | `pcap_files/attack/E04_invalid_path.pcap` | D04 (1) |
 | E05 | Five announcements at 0.2 s spacing | `pcap_files/attack/E05_burst.pcap` | D01 x5, D02 x5, D03 x1 (11) |
 | E06 | Source-specific UDP/631 DROP rule matched one packet; no victim TCP callback observed | `pcap_files/mitigation/E06_after_firewall.pcap` | D01 only (1) |
+| E07 | Authorized legacy browse from the virtual printer (172.19.0.4:631); victim TCP connection to printer port 8631 about 28.86 ms later, with subsequent data exchange | `pcap_files/normal/E07_legacy_baseline.pcap` | Trusted source: 0 alerts; omitted trusted source: D01 + D02 (2) |
 
-Evidence: `evidence/logs/` contains original attack JSONL, detector JSON/CSV, victim/printer logs, and `E06_firewall_counters.txt`. The E06 counter recorded one dropped packet (114 bytes); the rule was removed after the test. The failed E01 URI variants are preserved rather than omitted.
+Evidence: `evidence/logs/` contains original attack JSONL, detector JSON/CSV, victim/printer logs, and `E06_firewall_counters.txt`. The E06 counter recorded one dropped packet (114 bytes); the rule was removed after the test. The failed E01 URI variants are preserved rather than omitted. E07 detector outputs are `E07_trusted.json/.csv` and `E07_untrusted.json/.csv`. The four Wireshark screenshots are in `evidence/screenshots/` (E02, E05, E06 and E07).
 
 ## Mitigation, analysis, and caveats
 
 Mitigation was an `iptables` INPUT DROP on the victim's network namespace, specifically `-s 172.19.0.3 -p udp --dport 631`. Before mitigation (E02) the advertisement resulted in a TCP callback; with this rule applied (E06), the victim-side capture still observed the inbound datagram but no outbound TCP session. The detector correspondingly reported D01 but not D02. This documents one controlled before/after outcome; it does not prove comprehensive resistance to CUPS exploitation.
 
-Only two kinds of benign/negative examples were tested: direct IPP traffic (E00) and unsupported browse format (E04). We do **not** claim production accuracy, numerical false-positive rate, or zero false negatives. DNS-SD was disabled for the software printer, so E00 is a normal IPP protocol baseline rather than an automatic-discovery baseline.
+The E00 test is a direct IPP baseline from a test client. E07 adds an authorized, manually generated legacy CUPS browse announcement from the printer namespace, followed by a victim-initiated TCP handshake and bidirectional application data. The same legitimate E07 PCAP yielded **0 alerts** with `--trusted-source 172.19.0.4` and **D01/D02** when that source was omitted. The latter is a demonstrated configuration-dependent false positive for the controlled test, not a measured general false-positive rate. We do **not** claim production accuracy or zero false negatives. A separate DNS-SD-enabled printer generated mDNS packets on the printer side, but none were observed in the victim-side capture; automatic DNS-SD discovery remains unverified.
 
 ## Safety and references
 
