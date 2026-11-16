@@ -1,0 +1,36 @@
+
+services:
+  victim:
+    image: vulhub/cups-browsed:2.0.1
+    platform: linux/amd64
+    container_name: dat505-cups-victim
+    networks:
+      - cups_lab
+    restart: "no"
+
+  attacker:
+    image: dat505-scapy-attacker
+    platform: linux/arm64
+    container_name: dat505-cups-attacker
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    networks:
+      - cups_lab
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    restart: "no"
+
+  printer:
+    image: dat505-ipp-printer
+    container_name: dat505-cups-printer
+    networks:
+      - cups_lab
+    restart: "no"
+
+networks:
+  cups_lab:
+    internal: true
+
+
